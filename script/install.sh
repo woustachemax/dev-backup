@@ -41,7 +41,7 @@ echo ""
 if [[ "$OS" == "linux" ]] || [[ "$OS" == "macos" ]]; then
     if [ "$EUID" -ne 0 ]; then 
         echo -e "${YELLOW}This installer needs sudo access to install to $INSTALL_DIR${NC}"
-        echo "Please run: ${GREEN}sudo ./install.sh${NC}"
+        echo -e "Please run: ${GREEN}sudo ./install.sh${NC}"
         exit 1
     fi
 fi
@@ -70,20 +70,20 @@ cp "$SOURCE_SCRIPT" "$INSTALL_DIR/$SCRIPT_NAME"
 chmod +x "$INSTALL_DIR/$SCRIPT_NAME"
 
 if command -v devbackup &> /dev/null; then
+    INSTALLED_VERSION=$(devbackup help 2>&1 | grep -o "v[0-9.]*" | head -1 || echo "v$VERSION")
     echo ""
     echo -e "${GREEN}╔══════════════════════════════════════════════════════════╗${NC}"
     echo -e "${GREEN}║              ✓ INSTALLATION COMPLETE!                   ║${NC}"
     echo -e "${GREEN}╚══════════════════════════════════════════════════════════╝${NC}"
     echo ""
-    echo -e "${CYAN}DevBackup is now installed!${NC}"
+    echo -e "${CYAN}DevBackup $INSTALLED_VERSION is now installed!${NC}"
     echo ""
     echo -e "${YELLOW}Quick Start:${NC}"
     echo "  devbackup           - Open interactive menu"
     echo "  devbackup backup    - Create backup now"
     echo "  devbackup restore   - Restore from backup"
-    echo "  devbackup verify    - Check backup contents"
+    echo "  devbackup verify    - View backup details"
     echo ""
-    echo -e "${CYAN}Version:${NC} $(devbackup help | grep -o "v[0-9.]*" | head -1)"
 else
     echo -e "${RED}✗ Installation failed${NC}"
     echo "devbackup command not found in PATH"

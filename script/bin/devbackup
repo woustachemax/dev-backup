@@ -54,20 +54,18 @@ show_menu() {
     echo ""
     echo "  1) Backup this computer"
     echo "  2) Restore from backup"
-    echo "  3) View backup info"
-    echo "  4) Verify backup contents"
-    echo "  5) Help"
-    echo "  6) Exit"
+    echo "  3) View backup details"
+    echo "  4) Help"
+    echo "  5) Exit"
     echo ""
-    read -p "Enter choice (1-6): " choice
+    read -p "Enter choice (1-5): " choice
     
     case $choice in
         1) backup_wizard ;;
         2) restore_wizard ;;
-        3) show_backup_info ;;
-        4) verify_backup ;;
-        5) show_help ;;
-        6) exit 0 ;;
+        3) verify_backup ;;
+        4) show_help ;;
+        5) exit 0 ;;
         *) 
             log_error "Invalid choice"
             sleep 2
@@ -109,9 +107,9 @@ backup_wizard() {
         echo -e "${CYAN}Size:${NC} $(du -h "$BACKUP_FILE" 2>/dev/null | cut -f1)"
         echo ""
         echo -e "${MAGENTA}Next steps:${NC}"
-        echo "  1. Copy ${YELLOW}$BACKUP_FILE${NC} to your new computer"
-        echo "  2. Install DevBackup on new computer"
-        echo "  3. Run: ${CYAN}devbackup restore${NC}"
+        echo -e "  1. Copy ${YELLOW}$BACKUP_FILE${NC} to your new computer"
+        echo -e "  2. On new computer, install DevBackup"
+        echo -e "  3. Then run: ${CYAN}devbackup restore${NC}"
     else
         log_error "Backup failed"
     fi
@@ -205,7 +203,7 @@ restore_wizard() {
         log_error "No backup file found at: $BACKUP_FILE"
         echo ""
         echo "Please:"
-        echo "  1. Copy your backup file to: ${YELLOW}$BACKUP_FILE${NC}"
+        echo -e "  1. Copy your backup file to: ${YELLOW}$BACKUP_FILE${NC}"
         echo "  2. Run restore again"
         echo ""
         read -p "Press ENTER to return..."
@@ -256,7 +254,7 @@ restore_wizard() {
         echo ""
         echo -e "${MAGENTA}Final steps:${NC}"
         echo "  1. Restart your terminal"
-        echo "  2. Run: ${CYAN}source ~/.zshrc${NC} (or ~/.bashrc)"
+        echo -e "  2. Run: ${CYAN}source ~/.zshrc${NC} (or ~/.bashrc)"
         echo "  3. Verify everything works"
     else
         log_error "Restore had some errors (check above)"
@@ -368,12 +366,14 @@ perform_restore() {
 verify_backup() {
     show_logo
     echo -e "${CYAN}╔══════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║                  BACKUP VERIFICATION                     ║${NC}"
+    echo -e "${CYAN}║                  BACKUP DETAILS                          ║${NC}"
     echo -e "${CYAN}╚══════════════════════════════════════════════════════════╝${NC}"
     echo ""
     
     if [ ! -f "$BACKUP_FILE" ]; then
         log_error "No backup found at $BACKUP_FILE"
+        echo ""
+        echo -e "${CYAN}To create a backup, select option 1 from the main menu${NC}"
         echo ""
         read -p "Press ENTER to return..."
         show_menu
@@ -402,7 +402,12 @@ verify_backup() {
     echo ""
     
     if [ -f "$VERIFY_DIR/source_os.txt" ]; then
-        echo -e "${BLUE}OS:${NC} $(cat "$VERIFY_DIR/source_os.txt")"
+        echo -e "${BLUE}Source OS:${NC} $(cat "$VERIFY_DIR/source_os.txt")"
+    fi
+    
+    BACKUP_DATE=$(stat -c %y "$BACKUP_FILE" 2>/dev/null | cut -d'.' -f1 || stat -f %Sm "$BACKUP_FILE" 2>/dev/null)
+    if [ -n "$BACKUP_DATE" ]; then
+        echo -e "${BLUE}Created:${NC} $BACKUP_DATE"
     fi
     
     if [ -f "$VERIFY_DIR/node-version.txt" ]; then
@@ -436,6 +441,16 @@ verify_backup() {
         echo -e "  ${GREEN}✓${NC} Homebrew packages: $BREW_COUNT"
     fi
     
+    if [ -f "$VERIFY_DIR/cargo-packages.txt" ]; then
+        CARGO_COUNT=$(wc -l < "$VERIFY_DIR/cargo-packages.txt")
+        echo -e "  ${GREEN}✓${NC} Cargo packages: $CARGO_COUNT"
+    fi
+    
+    if [ -f "$VERIFY_DIR/gem-packages.txt" ]; then
+        GEM_COUNT=$(wc -l < "$VERIFY_DIR/gem-packages.txt")
+        echo -e "  ${GREEN}✓${NC} Ruby gems: $GEM_COUNT"
+    fi
+    
     echo ""
     echo -e "${CYAN}⚙️  Configs Backed Up:${NC}"
     
@@ -443,6 +458,7 @@ verify_backup() {
     [ -f "$VERIFY_DIR/.bashrc" ] && echo -e "  ${GREEN}✓${NC} .bashrc"
     [ -f "$VERIFY_DIR/.gitconfig" ] && echo -e "  ${GREEN}✓${NC} .gitconfig"
     [ -f "$VERIFY_DIR/.vimrc" ] && echo -e "  ${GREEN}✓${NC} .vimrc"
+    [ -f "$VERIFY_DIR/.tmux.conf" ] && echo -e "  ${GREEN}✓${NC} .tmux.conf"
     
     if [ -d "$VERIFY_DIR/.ssh" ]; then
         SSH_COUNT=$(ls "$VERIFY_DIR/.ssh" 2>/dev/null | wc -l)
@@ -454,9 +470,14 @@ verify_backup() {
         echo -e "  ${GREEN}✓${NC} VS Code extensions: $VSCODE_COUNT"
     fi
     
+    if [ -f "$VERIFY_DIR/cursor/extensions.txt" ]; then
+        CURSOR_COUNT=$(wc -l < "$VERIFY_DIR/cursor/extensions.txt")
+        echo -e "  ${GREEN}✓${NC} Cursor extensions: $CURSOR_COUNT"
+    fi
+    
     echo ""
-    echo -e "${CYAN}💾 Backup Details:${NC}"
-    echo -e "  File: ${YELLOW}$BACKUP_FILE${NC}"
+    echo -e "${CYAN}💾 Backup File:${NC}"
+    echo -e "  Location: ${YELLOW}$BACKUP_FILE${NC}"
     echo -e "  Size: $(du -h "$BACKUP_FILE" 2>/dev/null | cut -f1)"
     
     echo ""
@@ -469,28 +490,27 @@ verify_backup() {
     show_menu
 }
 
-show_backup_info() {
-    show_logo
-    if [ -f "$BACKUP_FILE" ]; then
-        echo -e "${GREEN}Latest backup:${NC}"
-        echo -e "  ${YELLOW}$BACKUP_FILE${NC}"
-        echo -e "  Size: $(du -h "$BACKUP_FILE" 2>/dev/null | cut -f1)"
-    else
-        echo -e "${YELLOW}No backup found${NC}"
-    fi
-    echo ""
-    read -p "Press ENTER to return..."
-    show_menu
-}
-
 show_help() {
     show_logo
-    echo -e "${CYAN}Commands:${NC}"
-    echo "  devbackup backup  - Create backup"
-    echo "  devbackup restore - Restore backup"
-    echo "  devbackup verify  - Check backup contents"
+    echo -e "${CYAN}╔══════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║                       HELP                               ║${NC}"
+    echo -e "${CYAN}╚══════════════════════════════════════════════════════════╝${NC}"
     echo ""
-    echo -e "${CYAN}Website:${NC} https://github.com/woustachemax/dev-backup"
+    echo -e "${YELLOW}Commands:${NC}"
+    echo "  devbackup           - Open interactive menu"
+    echo "  devbackup backup    - Create backup"
+    echo "  devbackup restore   - Restore from backup"
+    echo "  devbackup verify    - View backup details"
+    echo ""
+    echo -e "${YELLOW}Quick Start:${NC}"
+    echo "  1. Run 'devbackup backup' on your old computer"
+    echo "  2. Copy ~/DevBackup.tar.gz to your new computer"
+    echo "  3. Install DevBackup on new computer"
+    echo "  4. Run 'devbackup restore'"
+    echo ""
+    echo -e "${YELLOW}Support:${NC}"
+    echo -e "  GitHub: ${CYAN}https://github.com/woustachemax/dev-backup${NC}"
+    echo -e "  Issues: ${CYAN}https://github.com/woustachemax/dev-backup/issues${NC}"
     echo ""
     read -p "Press ENTER to return..."
     show_menu
