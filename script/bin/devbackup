@@ -1,0 +1,513 @@
+#!/bin/bash
+
+VERSION="1.0.0"
+BACKUP_DIR="$HOME/DevBackup-$(date +%Y%m%d-%H%M%S)"
+BACKUP_FILE="$HOME/DevBackup.tar.gz"
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+MAGENTA='\033[0;35m'
+NC='\033[0m'
+
+show_logo() {
+    clear
+    echo -e "${CYAN}"
+    echo "╔══════════════════════════════════════════════════════════╗"
+    echo "║                                                          ║"
+    echo "║                       DEVBACKUP                          ║"
+    echo "║                       v$VERSION                             ║"
+    echo "║                                                          ║"
+    echo "╚══════════════════════════════════════════════════════════╝"
+    echo -e "${NC}"
+    echo ""
+}
+
+log_info() { echo -e "${GREEN}✓${NC} $1"; }
+log_warn() { echo -e "${YELLOW}⚠${NC} $1"; }
+log_error() { echo -e "${RED}✗${NC} $1"; }
+log_progress() { echo -e "${BLUE}▸${NC} $1"; }
+
+detect_os() {
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "macos"
+    elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]] || [[ "$OSTYPE" == "win32" ]]; then
+        echo "windows"
+    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        if grep -qi microsoft /proc/version 2>/dev/null; then
+            echo "wsl"
+        else
+            echo "linux"
+        fi
+    else
+        echo "unknown"
+    fi
+}
+
+OS=$(detect_os)
+
+show_menu() {
+    show_logo
+    echo -e "${CYAN}What would you like to do?${NC}"
+    echo ""
+    echo "  1) Backup this computer"
+    echo "  2) Restore from backup"
+    echo "  3) View backup info"
+    echo "  4) Verify backup contents"
+    echo "  5) Help"
+    echo "  6) Exit"
+    echo ""
+    read -p "Enter choice (1-6): " choice
+    
+    case $choice in
+        1) backup_wizard ;;
+        2) restore_wizard ;;
+        3) show_backup_info ;;
+        4) verify_backup ;;
+        5) show_help ;;
+        6) exit 0 ;;
+        *) 
+            log_error "Invalid choice"
+            sleep 2
+            show_menu
+            ;;
+    esac
+}
+
+backup_wizard() {
+    show_logo
+    echo -e "${CYAN}╔══════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║                    BACKUP WIZARD                         ║${NC}"
+    echo -e "${CYAN}╚══════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    echo -e "${GREEN}This will backup:${NC}"
+    echo "  • All your applications"
+    echo "  • Programming tools (Node, Python, etc.)"
+    echo "  • IDEs (VS Code, Cursor, etc.)"
+    echo "  • Shell configs"
+    echo "  • SSH keys (public only)"
+    echo ""
+    read -p "Continue? (y/n): " confirm
+    
+    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+        show_menu
+        return
+    fi
+    
+    echo ""
+    log_progress "Starting backup..."
+    
+    if create_backup; then
+        show_logo
+        echo -e "${GREEN}╔══════════════════════════════════════════════════════════╗${NC}"
+        echo -e "${GREEN}║                  ✓ BACKUP COMPLETE!                      ║${NC}"
+        echo -e "${GREEN}╚══════════════════════════════════════════════════════════╝${NC}"
+        echo ""
+        echo -e "${CYAN}Your backup:${NC} ${YELLOW}$BACKUP_FILE${NC}"
+        echo -e "${CYAN}Size:${NC} $(du -h "$BACKUP_FILE" 2>/dev/null | cut -f1)"
+        echo ""
+        echo -e "${MAGENTA}Next steps:${NC}"
+        echo "  1. Copy ${YELLOW}$BACKUP_FILE${NC} to your new computer"
+        echo "  2. Install DevBackup on new computer"
+        echo "  3. Run: ${CYAN}devbackup restore${NC}"
+    else
+        log_error "Backup failed"
+    fi
+    
+    echo ""
+    read -p "Press ENTER to return..."
+    show_menu
+}
+
+create_backup() {
+    mkdir -p "$BACKUP_DIR" || return 1
+    
+    echo "$OS" > "$BACKUP_DIR/source_os.txt"
+    echo "$VERSION" > "$BACKUP_DIR/version.txt"
+    
+    log_progress "Backing up packages..."
+    
+    if command -v brew &> /dev/null; then
+        brew bundle dump --file="$BACKUP_DIR/Brewfile" --force 2>/dev/null || true
+        brew list --cask > "$BACKUP_DIR/brew-casks.txt" 2>/dev/null || true
+    fi
+    
+    if command -v apt &> /dev/null; then
+        dpkg --get-selections > "$BACKUP_DIR/apt-packages.txt" 2>/dev/null || true
+    fi
+    
+    if command -v pacman &> /dev/null; then
+        pacman -Qqe > "$BACKUP_DIR/pacman-packages.txt" 2>/dev/null || true
+    fi
+    
+    if command -v choco &> /dev/null; then
+        choco list --local-only > "$BACKUP_DIR/choco-packages.txt" 2>/dev/null || true
+    fi
+    
+    if command -v node &> /dev/null; then
+        node --version > "$BACKUP_DIR/node-version.txt"
+        npm list -g --depth=0 --json > "$BACKUP_DIR/npm-global.json" 2>/dev/null || true
+    fi
+    
+    if command -v python3 &> /dev/null; then
+        python3 --version > "$BACKUP_DIR/python-version.txt"
+        pip3 list --format=freeze > "$BACKUP_DIR/pip3-packages.txt" 2>/dev/null || true
+    fi
+    
+    if command -v cargo &> /dev/null; then
+        cargo install --list > "$BACKUP_DIR/cargo-packages.txt" 2>/dev/null || true
+    fi
+    
+    if command -v ruby &> /dev/null; then
+        gem list > "$BACKUP_DIR/gem-packages.txt" 2>/dev/null || true
+    fi
+    
+    log_progress "Backing up configs..."
+    
+    for file in .zshrc .bashrc .bash_profile .profile .gitconfig .vimrc .tmux.conf; do
+        [ -f "$HOME/$file" ] && cp "$HOME/$file" "$BACKUP_DIR/" 2>/dev/null || true
+    done
+    
+    if [ -d "$HOME/.ssh" ]; then
+        mkdir -p "$BACKUP_DIR/.ssh"
+        cp "$HOME/.ssh/config" "$BACKUP_DIR/.ssh/" 2>/dev/null || true
+        find "$HOME/.ssh" -name "*.pub" -exec cp {} "$BACKUP_DIR/.ssh/" \; 2>/dev/null || true
+    fi
+    
+    if command -v code &> /dev/null; then
+        mkdir -p "$BACKUP_DIR/vscode"
+        code --list-extensions > "$BACKUP_DIR/vscode/extensions.txt" 2>/dev/null || true
+    fi
+    
+    if command -v cursor &> /dev/null; then
+        mkdir -p "$BACKUP_DIR/cursor"
+        cursor --list-extensions > "$BACKUP_DIR/cursor/extensions.txt" 2>/dev/null || true
+    fi
+    
+    log_progress "Creating archive..."
+    
+    tar -czf "$BACKUP_FILE" -C "$(dirname "$BACKUP_DIR")" "$(basename "$BACKUP_DIR")" 2>/dev/null || return 1
+    rm -rf "$BACKUP_DIR"
+    
+    return 0
+}
+
+restore_wizard() {
+    show_logo
+    echo -e "${CYAN}╔══════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║                   RESTORE WIZARD                         ║${NC}"
+    echo -e "${CYAN}╚══════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    
+    if [ ! -f "$BACKUP_FILE" ]; then
+        log_error "No backup file found at: $BACKUP_FILE"
+        echo ""
+        echo "Please:"
+        echo "  1. Copy your backup file to: ${YELLOW}$BACKUP_FILE${NC}"
+        echo "  2. Run restore again"
+        echo ""
+        read -p "Press ENTER to return..."
+        show_menu
+        return
+    fi
+    
+    log_progress "Found backup: $(du -h "$BACKUP_FILE" | cut -f1)"
+    echo ""
+    
+    mkdir -p /tmp/restore-preview
+    tar -xzf "$BACKUP_FILE" -C /tmp/restore-preview 2>/dev/null
+    PREVIEW_DIR=$(find /tmp/restore-preview -maxdepth 1 -type d -name "DevBackup-*" | head -n 1)
+    
+    if [ -n "$PREVIEW_DIR" ]; then
+        SOURCE_OS=$(cat "$PREVIEW_DIR/source_os.txt" 2>/dev/null || echo "unknown")
+        echo -e "${CYAN}Backup from:${NC} $SOURCE_OS"
+        echo -e "${CYAN}Restoring to:${NC} $OS"
+        
+        if [ "$SOURCE_OS" != "$OS" ]; then
+            echo ""
+            log_warn "Cross-platform restore detected"
+            echo "  Some packages may not be available on $OS"
+        fi
+    fi
+    
+    rm -rf /tmp/restore-preview
+    
+    echo ""
+    echo -e "${YELLOW}⚠  This will:${NC}"
+    echo "  • Install packages (may take 10-30 minutes)"
+    echo "  • Restore your configs (backups will be created)"
+    echo "  • Install IDE extensions"
+    echo ""
+    read -p "Continue? (y/n): " confirm
+    
+    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+        show_menu
+        return
+    fi
+    
+    echo ""
+    if perform_restore; then
+        show_logo
+        echo -e "${GREEN}╔══════════════════════════════════════════════════════════╗${NC}"
+        echo -e "${GREEN}║                 ✓ RESTORE COMPLETE!                      ║${NC}"
+        echo -e "${GREEN}╚══════════════════════════════════════════════════════════╝${NC}"
+        echo ""
+        echo -e "${MAGENTA}Final steps:${NC}"
+        echo "  1. Restart your terminal"
+        echo "  2. Run: ${CYAN}source ~/.zshrc${NC} (or ~/.bashrc)"
+        echo "  3. Verify everything works"
+    else
+        log_error "Restore had some errors (check above)"
+    fi
+    
+    echo ""
+    read -p "Press ENTER to return..."
+    show_menu
+}
+
+perform_restore() {
+    log_progress "Extracting backup..."
+    
+    tar -xzf "$BACKUP_FILE" -C "$HOME" 2>/dev/null || {
+        log_error "Failed to extract backup"
+        return 1
+    }
+    
+    RESTORE_DIR=$(find "$HOME" -maxdepth 1 -type d -name "DevBackup-*" | sort -r | head -n 1)
+    
+    if [ -z "$RESTORE_DIR" ]; then
+        log_error "Could not find restore directory"
+        return 1
+    fi
+    
+    SOURCE_OS=$(cat "$RESTORE_DIR/source_os.txt" 2>/dev/null || echo "unknown")
+    
+    if [[ "$OS" == "macos" ]] && [ -f "$RESTORE_DIR/Brewfile" ]; then
+        if ! command -v brew &> /dev/null; then
+            log_progress "Installing Homebrew..."
+            /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" || true
+        fi
+        
+        if command -v brew &> /dev/null; then
+            log_progress "Installing applications via Homebrew (this may take a while)..."
+            brew bundle --file="$RESTORE_DIR/Brewfile" 2>&1 | grep -E "(Installing|Installed|Using)" || true
+        fi
+    fi
+    
+    if [[ "$OS" == "linux" ]] && [ -f "$RESTORE_DIR/apt-packages.txt" ]; then
+        if command -v apt &> /dev/null; then
+            log_progress "Restoring apt packages (this will take a while)..."
+            log_warn "You may be prompted for sudo password"
+            sudo dpkg --set-selections < "$RESTORE_DIR/apt-packages.txt" 2>/dev/null || true
+            sudo apt-get dselect-upgrade -y 2>&1 | grep -E "(installed|upgraded)" || true
+        fi
+    fi
+    
+    if [[ "$OS" == "windows" ]] && [ -f "$RESTORE_DIR/choco-packages.txt" ]; then
+        if command -v choco &> /dev/null; then
+            log_progress "Installing Chocolatey packages..."
+            grep -v "Chocolatey" "$RESTORE_DIR/choco-packages.txt" | awk '{print $1}' | tail -n +2 | while read pkg; do
+                choco install "$pkg" -y 2>/dev/null || true
+            done
+        fi
+    fi
+    
+    log_progress "Restoring shell configs..."
+    
+    for file in .zshrc .bashrc .bash_profile .profile .gitconfig .vimrc .tmux.conf; do
+        if [ -f "$RESTORE_DIR/$file" ]; then
+            if [ -f "$HOME/$file" ]; then
+                cp "$HOME/$file" "$HOME/${file}.backup-$(date +%Y%m%d)" 2>/dev/null || true
+            fi
+            cp "$RESTORE_DIR/$file" "$HOME/"
+            log_info "Restored $file"
+        fi
+    done
+    
+    if [ -d "$RESTORE_DIR/.ssh" ]; then
+        log_progress "Restoring SSH config..."
+        mkdir -p "$HOME/.ssh"
+        cp -r "$RESTORE_DIR/.ssh/"* "$HOME/.ssh/" 2>/dev/null || true
+        chmod 700 "$HOME/.ssh"
+        chmod 600 "$HOME/.ssh/config" 2>/dev/null || true
+    fi
+    
+    if [ -f "$RESTORE_DIR/npm-global.json" ] && command -v npm &> /dev/null; then
+        log_progress "Installing npm global packages..."
+        cat "$RESTORE_DIR/npm-global.json" | grep -oP '"[^"]+(?=":)' | grep -v "^npm$" | grep -v "^dependencies$" | grep -v "^name$" | while read pkg; do
+            npm install -g "$pkg" 2>/dev/null || true
+        done
+    fi
+    
+    if [ -f "$RESTORE_DIR/pip3-packages.txt" ] && command -v pip3 &> /dev/null; then
+        log_progress "Installing Python packages..."
+        pip3 install -r "$RESTORE_DIR/pip3-packages.txt" 2>/dev/null || true
+    fi
+    
+    if [ -f "$RESTORE_DIR/vscode/extensions.txt" ] && command -v code &> /dev/null; then
+        log_progress "Installing VS Code extensions..."
+        while read ext; do
+            code --install-extension "$ext" 2>/dev/null || true
+        done < "$RESTORE_DIR/vscode/extensions.txt"
+    fi
+    
+    if [ -f "$RESTORE_DIR/cursor/extensions.txt" ] && command -v cursor &> /dev/null; then
+        log_progress "Installing Cursor extensions..."
+        while read ext; do
+            cursor --install-extension "$ext" 2>/dev/null || true
+        done < "$RESTORE_DIR/cursor/extensions.txt"
+    fi
+    
+    log_info "Restore completed!"
+    
+    return 0
+}
+
+verify_backup() {
+    show_logo
+    echo -e "${CYAN}╔══════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║                  BACKUP VERIFICATION                     ║${NC}"
+    echo -e "${CYAN}╚══════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    
+    if [ ! -f "$BACKUP_FILE" ]; then
+        log_error "No backup found at $BACKUP_FILE"
+        echo ""
+        read -p "Press ENTER to return..."
+        show_menu
+        return
+    fi
+    
+    log_progress "Analyzing backup..."
+    
+    mkdir -p /tmp/backup-verify
+    tar -xzf "$BACKUP_FILE" -C /tmp/backup-verify 2>/dev/null
+    
+    VERIFY_DIR=$(find /tmp/backup-verify -maxdepth 1 -type d -name "DevBackup-*" | head -n 1)
+    
+    if [ -z "$VERIFY_DIR" ]; then
+        log_error "Could not read backup"
+        rm -rf /tmp/backup-verify
+        read -p "Press ENTER to return..."
+        show_menu
+        return
+    fi
+    
+    echo ""
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}📦 BACKUP SUMMARY${NC}"
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    
+    if [ -f "$VERIFY_DIR/source_os.txt" ]; then
+        echo -e "${BLUE}OS:${NC} $(cat "$VERIFY_DIR/source_os.txt")"
+    fi
+    
+    if [ -f "$VERIFY_DIR/node-version.txt" ]; then
+        echo -e "${BLUE}Node:${NC} $(cat "$VERIFY_DIR/node-version.txt")"
+    fi
+    
+    if [ -f "$VERIFY_DIR/python-version.txt" ]; then
+        echo -e "${BLUE}Python:${NC} $(cat "$VERIFY_DIR/python-version.txt")"
+    fi
+    
+    echo ""
+    echo -e "${CYAN}📋 Packages Backed Up:${NC}"
+    
+    if [ -f "$VERIFY_DIR/npm-global.json" ]; then
+        NPM_COUNT=$(grep -o '"version"' "$VERIFY_DIR/npm-global.json" | wc -l)
+        echo -e "  ${GREEN}✓${NC} npm packages: $NPM_COUNT"
+    fi
+    
+    if [ -f "$VERIFY_DIR/pip3-packages.txt" ]; then
+        PIP_COUNT=$(wc -l < "$VERIFY_DIR/pip3-packages.txt")
+        echo -e "  ${GREEN}✓${NC} pip packages: $PIP_COUNT"
+    fi
+    
+    if [ -f "$VERIFY_DIR/apt-packages.txt" ]; then
+        APT_COUNT=$(wc -l < "$VERIFY_DIR/apt-packages.txt")
+        echo -e "  ${GREEN}✓${NC} apt packages: $APT_COUNT"
+    fi
+    
+    if [ -f "$VERIFY_DIR/Brewfile" ]; then
+        BREW_COUNT=$(grep -c "brew" "$VERIFY_DIR/Brewfile" 2>/dev/null || echo "0")
+        echo -e "  ${GREEN}✓${NC} Homebrew packages: $BREW_COUNT"
+    fi
+    
+    echo ""
+    echo -e "${CYAN}⚙️  Configs Backed Up:${NC}"
+    
+    [ -f "$VERIFY_DIR/.zshrc" ] && echo -e "  ${GREEN}✓${NC} .zshrc"
+    [ -f "$VERIFY_DIR/.bashrc" ] && echo -e "  ${GREEN}✓${NC} .bashrc"
+    [ -f "$VERIFY_DIR/.gitconfig" ] && echo -e "  ${GREEN}✓${NC} .gitconfig"
+    [ -f "$VERIFY_DIR/.vimrc" ] && echo -e "  ${GREEN}✓${NC} .vimrc"
+    
+    if [ -d "$VERIFY_DIR/.ssh" ]; then
+        SSH_COUNT=$(ls "$VERIFY_DIR/.ssh" 2>/dev/null | wc -l)
+        echo -e "  ${GREEN}✓${NC} SSH keys: $SSH_COUNT files"
+    fi
+    
+    if [ -f "$VERIFY_DIR/vscode/extensions.txt" ]; then
+        VSCODE_COUNT=$(wc -l < "$VERIFY_DIR/vscode/extensions.txt")
+        echo -e "  ${GREEN}✓${NC} VS Code extensions: $VSCODE_COUNT"
+    fi
+    
+    echo ""
+    echo -e "${CYAN}💾 Backup Details:${NC}"
+    echo -e "  File: ${YELLOW}$BACKUP_FILE${NC}"
+    echo -e "  Size: $(du -h "$BACKUP_FILE" 2>/dev/null | cut -f1)"
+    
+    echo ""
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    
+    rm -rf /tmp/backup-verify
+    
+    echo ""
+    read -p "Press ENTER to return..."
+    show_menu
+}
+
+show_backup_info() {
+    show_logo
+    if [ -f "$BACKUP_FILE" ]; then
+        echo -e "${GREEN}Latest backup:${NC}"
+        echo -e "  ${YELLOW}$BACKUP_FILE${NC}"
+        echo -e "  Size: $(du -h "$BACKUP_FILE" 2>/dev/null | cut -f1)"
+    else
+        echo -e "${YELLOW}No backup found${NC}"
+    fi
+    echo ""
+    read -p "Press ENTER to return..."
+    show_menu
+}
+
+show_help() {
+    show_logo
+    echo -e "${CYAN}Commands:${NC}"
+    echo "  devbackup backup  - Create backup"
+    echo "  devbackup restore - Restore backup"
+    echo "  devbackup verify  - Check backup contents"
+    echo ""
+    echo -e "${CYAN}Website:${NC} https://github.com/woustachemax/dev-backup"
+    echo ""
+    read -p "Press ENTER to return..."
+    show_menu
+}
+
+main() {
+    if [ "$1" == "backup" ]; then
+        backup_wizard
+    elif [ "$1" == "restore" ]; then
+        restore_wizard
+    elif [ "$1" == "verify" ]; then
+        verify_backup
+    elif [ "$1" == "help" ]; then
+        show_help
+    else
+        show_menu
+    fi
+}
+
+main "$@"

@@ -1,0 +1,16 @@
+{
+  "name": "devbackup",
+  "version": "1.0.0",
+  "description": "Backup and restore your entire dev environment",
+  "bin": {
+    "devbackup": "./bin/devbackup"
+  },
+  "scripts": {
+    "build": "chmod +x bin/devbackup",
+    "test": "bash bin/devbackup help"
+  },
+  "keywords": ["backup", "restore", "dev"],
+  "author": "woustachemax",
+  "license": "MIT",
+  "files": ["bin/", "install.sh"]
+}
