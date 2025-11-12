@@ -24,7 +24,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className="font-sans"
+        className="font-serif"
       >
         {children}
       </body>
