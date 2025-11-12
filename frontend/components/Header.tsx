@@ -8,10 +8,11 @@ export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 bg-black border-b border-gray-800">
+    <header className="sticky top-0 bg-black ">
       <div className="py-3">
         <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
           <Image
+            className="hover:cursor-pointer"
             src="/header-logo.svg"
             alt="Dev Backup Logo"
             width={40}
