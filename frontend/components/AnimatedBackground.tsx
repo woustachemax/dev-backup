@@ -1,6 +1,6 @@
 export default function AnimatedBackground() {
   return (
-    <div className="absolute inset-0 opacity-30">
+    <div className="absolute inset-0 opacity-85">
       <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" className="w-full h-full" preserveAspectRatio="none">
         <defs>
           <radialGradient id="blob1">
