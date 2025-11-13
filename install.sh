@@ -5,6 +5,7 @@ set -e
 VERSION="1.0.0"
 INSTALL_DIR="/usr/local/bin"
 SCRIPT_NAME="devbackup"
+REPO_URL="https://raw.githubusercontent.com/woustachemax/dev-backup/main"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -15,7 +16,7 @@ NC='\033[0m'
 echo -e "${CYAN}"
 echo "╔══════════════════════════════════════════════════════════╗"
 echo "║                                                          ║"
-echo "║              DEVBACKUP INSTALLER v$VERSION                  ║"
+echo "║              DEVBACKUP INSTALLER v$VERSION               ║"
 echo "║                                                          ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
@@ -41,24 +42,42 @@ echo ""
 if [[ "$OS" == "linux" ]] || [[ "$OS" == "macos" ]]; then
     if [ "$EUID" -ne 0 ]; then 
         echo -e "${YELLOW}This installer needs sudo access to install to $INSTALL_DIR${NC}"
-        echo -e "Please run: ${GREEN}sudo ./install.sh${NC}"
+        echo -e "Please run: ${GREEN}curl -fsSL https://raw.githubusercontent.com/woustachemax/dev-backup/main/install.sh | sudo bash${NC}"
         exit 1
     fi
 fi
 
 if [ -f "script/bin/devbackup" ]; then
     SOURCE_SCRIPT="script/bin/devbackup"
+    echo -e "${GREEN}✓${NC} Found local script: $SOURCE_SCRIPT"
 elif [ -f "bin/devbackup" ]; then
     SOURCE_SCRIPT="bin/devbackup"
+    echo -e "${GREEN}✓${NC} Found local script: $SOURCE_SCRIPT"
 elif [ -f "devbackup" ]; then
     SOURCE_SCRIPT="devbackup"
+    echo -e "${GREEN}✓${NC} Found local script: $SOURCE_SCRIPT"
 else
-    echo -e "${RED}✗ Could not find devbackup script${NC}"
-    echo "Please run this installer from the dev-backup directory"
-    exit 1
+    echo -e "${CYAN}Downloading devbackup from GitHub...${NC}"
+    TEMP_SCRIPT="/tmp/devbackup-$$.sh"
+    
+    if command -v curl &> /dev/null; then
+        curl -fsSL "$REPO_URL/script/bin/devbackup" -o "$TEMP_SCRIPT" || {
+            echo -e "${RED}✗ Failed to download devbackup script${NC}"
+            exit 1
+        }
+    elif command -v wget &> /dev/null; then
+        wget -q "$REPO_URL/script/bin/devbackup" -O "$TEMP_SCRIPT" || {
+            echo -e "${RED}✗ Failed to download devbackup script${NC}"
+            exit 1
+        }
+    else
+        echo -e "${RED}✗ Neither curl nor wget found. Please install one of them.${NC}"
+        exit 1
+    fi
+    
+    SOURCE_SCRIPT="$TEMP_SCRIPT"
+    echo -e "${GREEN}✓${NC} Downloaded devbackup script"
 fi
-
-echo -e "${GREEN}✓${NC} Found script: $SOURCE_SCRIPT"
 
 if [ ! -d "$INSTALL_DIR" ]; then
     echo -e "${YELLOW}Creating $INSTALL_DIR...${NC}"
@@ -69,14 +88,17 @@ echo -e "${CYAN}Installing devbackup to $INSTALL_DIR...${NC}"
 cp "$SOURCE_SCRIPT" "$INSTALL_DIR/$SCRIPT_NAME"
 chmod +x "$INSTALL_DIR/$SCRIPT_NAME"
 
+if [[ "$SOURCE_SCRIPT" == /tmp/* ]]; then
+    rm -f "$SOURCE_SCRIPT"
+fi
+
 if command -v devbackup &> /dev/null; then
-    INSTALLED_VERSION=$(devbackup help 2>&1 | grep -o "v[0-9.]*" | head -1 || echo "v$VERSION")
     echo ""
     echo -e "${GREEN}╔══════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${GREEN}║              ✓ INSTALLATION COMPLETE!                    ║${NC}"
+    echo -e "${GREEN}║              ✓ INSTALLATION COMPLETE!                   ║${NC}"
     echo -e "${GREEN}╚══════════════════════════════════════════════════════════╝${NC}"
     echo ""
-    echo -e "${CYAN}DevBackup $INSTALLED_VERSION is now installed!${NC}"
+    echo -e "${CYAN}DevBackup v$VERSION is now installed!${NC}"
     echo ""
     echo -e "${YELLOW}Quick Start:${NC}"
     echo "  devbackup           - Open interactive menu"
