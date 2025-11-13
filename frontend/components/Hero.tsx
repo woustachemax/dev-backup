@@ -9,10 +9,10 @@ export default function Hero() {
     const [copiedCommand, setCopiedCommand] = useState<string | null>(null);
 
     const commands = {
-        macos: 'curl -fsSL devbackup.sh | sudo bash',
-        linux: 'curl -fsSL devbackup.sh | sudo bash',
-        windows: 'iwr -useb devbackup.sh | iex'
-    };
+    macos: 'curl -fsSL https://raw.githubusercontent.com/woustachemax/dev-backup/main/install.sh | sudo bash',
+    linux: 'curl -fsSL https://raw.githubusercontent.com/woustachemax/dev-backup/main/install.sh | sudo bash',
+    windows: 'iwr -useb https://raw.githubusercontent.com/woustachemax/dev-backup/main/install.ps1 | iex'
+};
 
     const handleCopy = () => {
         navigator.clipboard.writeText(commands[activeTab]);
@@ -28,6 +28,11 @@ export default function Hero() {
     
     return (
         <section className="relative bg-black text-white min-h-screen overflow-hidden">
+            <style jsx>{`
+                .scrollbar-hide::-webkit-scrollbar {
+                    display: none;
+                }
+            `}</style>
             <div className="absolute inset-0 opacity-30">
                 <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" className="w-full h-full" preserveAspectRatio="none">
                     <defs>
@@ -112,50 +117,50 @@ export default function Hero() {
                         </p>
 
                         <div className="relative z-10 w-full flex justify-center mt-10 max-w-4xl mx-auto">
-                            <div className="relative bg-white/5 backdrop-blur-xl rounded-lg sm:rounded-2xl p-1 sm:p-1.5 border border-white/10 shadow-xl w-full transition-all duration-500">
-                                <div className={`bg-stone-900 backdrop-blur-sm rounded-lg overflow-hidden h-[100px] sm:h-[110px] lg:h-[120px] w-full border border-white/10 shadow-lg ${hideTerminal ? 'opacity-0 h-0 p-0 border-0 shadow-none' : ''} transition-all duration-500`}> 
-                                    <div className="flex items-center justify-between px-3 sm:px-4 py-2 bg-stone-800/80 backdrop-blur-sm border-b border-white/10">
-                                        <div className="flex space-x-1.5">
-                                            <div onClick={()=> setHideTerminal(!hideTerminal)}
-                                            className="w-3 h-3 rounded-full bg-red-500 cursor-pointer"></div>
-                                            <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                                            <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                                        </div>
-                                        <div className="flex items-center space-x-3 text-xs sm:text-sm">
-                                            {(["macos","linux","windows"] as const).map(tab => (
-                                                <button 
-                                                    key={tab}
-                                                    onClick={() => setActiveTab(tab)}
-                                                    className={`transition-colors capitalize ${activeTab === tab ? 'text-gray-200' : 'text-neutral-500 hover:text-gray-300'}`}>
-                                                    {tab}
-                                                </button>
-                                            ))}
-                                        </div>
+    <div className="relative bg-white/5 backdrop-blur-xl rounded-lg sm:rounded-2xl p-1 sm:p-1.5 border border-white/10 shadow-xl w-full transition-all duration-500">
+        <div className={`bg-stone-900 backdrop-blur-sm rounded-lg overflow-hidden h-[120px] sm:h-[130px] lg:h-[140px] w-full border border-white/10 shadow-lg ${hideTerminal ? 'opacity-0 h-0 p-0 border-0 shadow-none' : ''} transition-all duration-500`}> 
+            <div className="flex items-center justify-between px-3 sm:px-4 py-2 bg-stone-800/80 backdrop-blur-sm border-b border-white/10">
+                <div className="flex space-x-1.5">
+                    <div onClick={()=> setHideTerminal(!hideTerminal)}
+                    className="w-3 h-3 rounded-full bg-red-500 cursor-pointer"></div>
+                    <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                </div>
+                <div className="flex items-center space-x-3 text-xs sm:text-sm">
+                    {(["macos","linux","windows"] as const).map(tab => (
+                        <button 
+                            key={tab}
+                            onClick={() => setActiveTab(tab)}
+                            className={`transition-colors capitalize ${activeTab === tab ? 'text-gray-200' : 'text-neutral-500 hover:text-gray-300'}`}>
+                            {tab}
+                        </button>
+                    ))}
+                </div>
+            </div>
+                    <div className="flex items-center justify-between h-[calc(100%-48px)] px-3 sm:px-4 py-3 font-mono text-xs sm:text-sm text-neutral-300">
+                            <div className="flex items-center min-w-0 flex-1 overflow-x-auto scrollbar-hide">
+                                        <span className="text-green-400 shrink-0">dev</span>
+                                        <span className="text-neutral-400 shrink-0">@</span>
+                                        <span className="text-blue-400 shrink-0">backup</span>
+                                        <span className="text-neutral-400 shrink-0">:</span>
+                                        <span className="text-purple-400 shrink-0">~</span>
+                                        <span className="text-neutral-400 shrink-0">$</span>
+                                        <span className="ml-2 whitespace-nowrap">{commands[activeTab]}</span>
                                     </div>
-                                    <div className="flex items-center justify-between h-[calc(100%-48px)] px-3 sm:px-4 font-mono text-xs sm:text-sm text-neutral-300">
-                                        <div className="flex items-center">
-                                            <span className="text-green-400">dev</span>
-                                            <span className="text-neutral-400">@</span>
-                                            <span className="text-blue-400">backup</span>
-                                            <span className="text-neutral-400">:</span>
-                                            <span className="text-purple-400">~</span>
-                                            <span className="text-neutral-400">$</span>
-                                            <span className="ml-2">{commands[activeTab]}</span>
-                                        </div>
-                                        <button
-                                            onClick={handleCopy}
-                                            className="ml-4 p-1.5 hover:bg-white/10 rounded transition-colors"
-                                            title="Copy command"
-                                        >
-                                            {copied ? (
-                                                <Check className="w-4 h-4 text-green-400" />
-                                            ) : (
-                                                <Copy className="w-4 h-4 text-neutral-400 hover:text-gray-200" />
-                                            )}
-                                        </button>
-                                    </div>
+                                    <button
+                                        onClick={handleCopy}
+                                        className="ml-4 p-1.5 hover:bg-white/10 rounded transition-colors shrink-0"
+                                        title="Copy command"
+                                    >
+                                        {copied ? (
+                                            <Check className="w-4 h-4 text-green-400" />
+                                        ) : (
+                                            <Copy className="w-4 h-4 text-neutral-400 hover:text-gray-200" />
+                                        )}
+                                    </button>
                                 </div>
                             </div>
+                         </div>
                         </div>
                     </div>
 
@@ -240,6 +245,13 @@ export default function Hero() {
                                 <div>
                                     <h4 className="text-gray-100 font-medium mb-2">3. Archive Phase</h4>
                                     <p className="text-sm text-gray-300">All backup data is compressed into a single timestamped .tar.gz file (typically <strong>10-50KB</strong>) stored in your home directory. Metadata includes source OS and tool versions for validation.</p>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <h2 className="text-2xl font-light text-gray-100">Interactive Wizard</h2>
+                                    <p className="leading-relaxed">
+                                        DevBackup includes a <strong>beautiful interactive menu system</strong>. Simply run <code className="text-sm bg-gray-800 px-2 py-1 rounded">devbackup</code> to launch the wizard with color-coded interface, step-by-step prompts, and progress indicators.
+                                    </p>
                                 </div>
                                 
                                 <div>
@@ -332,10 +344,10 @@ export default function Hero() {
                                     <h4 className="text-gray-100 font-medium mb-3">Installation</h4>
                                     <div className="relative group">
                                         <code className="block bg-gray-900/50 border border-gray-800 px-4 py-3 pr-12 rounded font-mono text-sm text-white">
-                                            curl -fsSL devbackup.sh | sudo bash
+                                            curl -fsSL https://raw.githubusercontent.com/woustachemax/dev-backup/main/install.sh | sudo bash
                                         </code>
                                         <button
-                                            onClick={() => handleCommandCopy('curl -fsSL devbackup.sh | sudo bash', 'install')}
+                                            onClick={() => handleCommandCopy('curl -fsSL https://raw.githubusercontent.com/woustachemax/dev-backup/main/install.sh | sudo bash', 'install')}
                                             className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 hover:bg-white/10 rounded transition-colors"
                                             title="Copy command"
                                         >
@@ -346,6 +358,7 @@ export default function Hero() {
                                             )}
                                         </button>
                                     </div>
+                                    <p className="text-sm text-gray-300 mt-2">Installs devbackup to /usr/local/bin and makes it globally available</p>
                                 </div>
                                 
                                 <div>
@@ -392,7 +405,7 @@ devbackup restore`}
                                 
                                 <div>
                                     <h4 className="text-gray-100 font-medium mb-3">Verify Backup Contents</h4>
-                                    <div className="relative group">
+                                    <div className="relative group mb-2">
                                         <code className="block bg-gray-900/50 border border-gray-800 px-4 py-3 pr-12 rounded font-mono text-sm text-white">
                                             devbackup verify
                                         </code>
@@ -408,6 +421,21 @@ devbackup restore`}
                                             )}
                                         </button>
                                     </div>
+                                    <div>
+                                    <h4 className="text-gray-100 font-medium mb-3 mt-3">Uninstall DevBackup</h4>
+                                    <div className="relative group">
+                                        <code className="block bg-gray-900/50 border border-gray-800 px-4 py-3 pr-12 rounded font-mono text-sm text-white">
+                                            curl -fsSL https://raw.githubusercontent.com/woustachemax/dev-backup/main/uninstall.sh | sudo bash
+                                        </code>
+                                        <button
+                                            onClick={() => handleCommandCopy('curl -fsSL https://raw.githubusercontent.com/woustachemax/dev-backup/main/uninstall.sh | sudo bash', 'uninstall')}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 hover:bg-white/10 rounded transition-colors"
+                                        >
+                                            {copiedCommand === 'uninstall' ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4 text-neutral-400 hover:text-gray-200" />}
+                                        </button>
+                                    </div>
+                                    <p className="text-sm text-gray-300 mt-2">Your backups are preserved at ~/DevBackup.tar.gz</p>
+                                </div>
                                     <p className="text-sm text-gray-300 mt-2">View detailed information about what's in your backup</p>
                                 </div>
                             </div>

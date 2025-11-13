@@ -64,7 +64,7 @@ show_menu() {
         1) backup_wizard ;;
         2) restore_wizard ;;
         3) verify_backup ;;
-        4) show_help ;;
+        4) show_help_interactive ;;
         5) exit 0 ;;
         *) 
             log_error "Invalid choice"
@@ -490,7 +490,7 @@ verify_backup() {
     show_menu
 }
 
-show_help() {
+show_help_interactive() {
     show_logo
     echo -e "${CYAN}╔══════════════════════════════════════════════════════════╗${NC}"
     echo -e "${CYAN}║                       HELP                               ║${NC}"
@@ -514,6 +514,38 @@ show_help() {
     echo ""
     read -p "Press ENTER to return..."
     show_menu
+}
+
+show_help() {
+    echo -e "${CYAN}"
+    echo "╔══════════════════════════════════════════════════════════╗"
+    echo "║                                                          ║"
+    echo "║                       DEVBACKUP                          ║"
+    echo "║                       v$VERSION                          ║"
+    echo "║                                                          ║"
+    echo "╚══════════════════════════════════════════════════════════╝"
+    echo -e "${NC}"
+    echo ""
+    echo -e "${CYAN}╔══════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║                       HELP                               ║${NC}"
+    echo -e "${CYAN}╚══════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    echo -e "${YELLOW}Commands:${NC}"
+    echo "  devbackup           - Open interactive menu"
+    echo "  devbackup backup    - Create backup"
+    echo "  devbackup restore   - Restore from backup"
+    echo "  devbackup verify    - View backup details"
+    echo ""
+    echo -e "${YELLOW}Quick Start:${NC}"
+    echo "  1. Run 'devbackup backup' on your old computer"
+    echo "  2. Copy ~/DevBackup.tar.gz to your new computer"
+    echo "  3. Install DevBackup on new computer"
+    echo "  4. Run 'devbackup restore'"
+    echo ""
+    echo -e "${YELLOW}Support:${NC}"
+    echo -e "  GitHub: ${CYAN}https://github.com/woustachemax/dev-backup${NC}"
+    echo -e "  Issues: ${CYAN}https://github.com/woustachemax/dev-backup/issues${NC}"
+    echo ""
 }
 
 main() {
